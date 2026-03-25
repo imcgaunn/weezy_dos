@@ -13,7 +13,8 @@ weezyDOS is a simple DOS-like operating system built from scratch for x86. It bo
 ```bash
 make all          # Build bootable disk image (build/disk.img)
 make test         # Build and run all host-side unit tests
-make run          # Launch weezyDOS in QEMU with KVM
+make run          # Launch weezyDOS in QEMU (nographic/serial mode)
+make run-gui      # Launch weezyDOS in QEMU with GUI window
 make clean        # Remove build artifacts
 ```
 
@@ -43,6 +44,12 @@ Hardware modules expose interfaces through function pointer structs (e.g., `disk
 **Host-testable (must have tests):** memory allocator, FAT16 driver, shell parser, string utilities, program loader logic.
 
 **QEMU-only (keep thin):** bootloader ASM, VGA writes (0xB8000), keyboard ISR (port 0x60), ATA PIO (port I/O), GDT/IDT setup.
+
+### Boot-Critical Details
+
+- `kmain()` must be in `.text.entry` section (via `__attribute__((section(".text.entry")))`) so the linker places it at exactly 0x10000 where Stage 2 jumps.
+- The disk image layout is: sector 0 = Stage 1 MBR, sectors 1-16 = Stage 2 (padded), sectors 17+ = kernel. These offsets must match the CHS sector numbers in the bootloader ASM (CHS is 1-based, so sector 18 = dd seek=17).
+- VGA output is not visible in QEMU's `-nographic` serial mode. Use `make run-gui` or dump VGA memory at 0xB8000 via QEMU monitor for debugging.
 
 ## Design Spec
 
