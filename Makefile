@@ -1,14 +1,15 @@
 # weezyDOS Build System
-# Two build paths: cross-compiled OS and native host tests
 
 # --- Toolchain ---
 CC       := clang
 ASM      := nasm
 LD       := ld.lld
+OBJCOPY  := llvm-objcopy
 
 # --- Cross-compilation flags (OS build) ---
 CFLAGS_KERNEL := -target i686-elf -ffreestanding -nostdlib -Wall -Wextra -std=c11 -O1
-ASMFLAGS      := -f elf32
+ASMFLAGS_BIN  := -f bin
+ASMFLAGS_ELF  := -f elf32
 
 # --- Native flags (test build) ---
 CFLAGS_TEST   := -DWEEZYDOS_TEST -Wall -Wextra -std=c11 -g -fsanitize=address,undefined
@@ -16,52 +17,90 @@ CFLAGS_TEST   := -DWEEZYDOS_TEST -Wall -Wextra -std=c11 -g -fsanitize=address,un
 # --- Directories ---
 BUILD_DIR := build
 
-# --- Kernel source files (add new .c files here) ---
-KERNEL_SRCS := kernel/string.c kernel/console.c kernel/keyboard.c kernel/shell.c
+# --- Kernel source files ---
+KERNEL_C_SRCS := kernel/string.c kernel/console.c kernel/keyboard.c kernel/shell.c kernel/idt.c kernel/main.c
+KERNEL_C_OBJS := $(patsubst kernel/%.c,$(BUILD_DIR)/%.o,$(KERNEL_C_SRCS))
 
-# --- Test source files (add new test files here) ---
+# --- ASM kernel objects (32-bit ELF, linked with kernel) ---
+KERNEL_ASM_SRCS := boot/idt_asm.asm
+KERNEL_ASM_OBJS := $(patsubst boot/%.asm,$(BUILD_DIR)/%.o,$(KERNEL_ASM_SRCS))
+
+# --- Test source files ---
 TEST_SRCS := tests/test_main.c tests/test_string.c tests/test_console.c tests/test_keyboard.c tests/test_shell.c
 
-# --- OS Build Targets ---
+# --- Disk layout ---
+STAGE2_SECTORS := 16
+FLOPPY_SIZE    := 1474560
+
+# ============================
+# OS Build Targets
+# ============================
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-# Assemble boot sector
+# Assemble boot sectors (flat binary)
 $(BUILD_DIR)/stage1.bin: boot/stage1.asm | $(BUILD_DIR)
-	$(ASM) -f bin $< -o $@
+	$(ASM) $(ASMFLAGS_BIN) $< -o $@
 
 $(BUILD_DIR)/stage2.bin: boot/stage2.asm | $(BUILD_DIR)
-	$(ASM) -f bin $< -o $@
+	$(ASM) $(ASMFLAGS_BIN) $< -o $@
+
+# Assemble kernel ASM files (ELF objects for linking)
+$(BUILD_DIR)/%.o: boot/%.asm | $(BUILD_DIR)
+	$(ASM) $(ASMFLAGS_ELF) $< -o $@
 
 # Cross-compile kernel C files
 $(BUILD_DIR)/%.o: kernel/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS_KERNEL) -c $< -o $@
 
-# --- Test Targets ---
+# Link kernel ELF
+$(BUILD_DIR)/kernel.elf: $(KERNEL_C_OBJS) $(KERNEL_ASM_OBJS) link.ld | $(BUILD_DIR)
+	$(LD) -T link.ld -o $@ $(KERNEL_C_OBJS) $(KERNEL_ASM_OBJS)
 
-$(BUILD_DIR)/test_runner: $(KERNEL_SRCS) $(TEST_SRCS) | $(BUILD_DIR)
-	$(CC) $(CFLAGS_TEST) -I. -o $@ $(TEST_SRCS) $(KERNEL_SRCS)
+# Extract flat binary from ELF
+$(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/kernel.elf
+	$(OBJCOPY) -O binary $< $@
+
+# Build the disk image
+$(BUILD_DIR)/disk.img: $(BUILD_DIR)/stage1.bin $(BUILD_DIR)/stage2.bin $(BUILD_DIR)/kernel.bin
+	cp $(BUILD_DIR)/stage1.bin $(BUILD_DIR)/disk.img
+	dd if=$(BUILD_DIR)/stage2.bin of=$(BUILD_DIR)/stage2_padded.bin bs=512 count=$(STAGE2_SECTORS) conv=sync 2>/dev/null
+	cat $(BUILD_DIR)/stage2_padded.bin >> $(BUILD_DIR)/disk.img
+	cat $(BUILD_DIR)/kernel.bin >> $(BUILD_DIR)/disk.img
+	truncate -s $(FLOPPY_SIZE) $(BUILD_DIR)/disk.img
+	@echo "Disk image built: $(BUILD_DIR)/disk.img"
+
+# ============================
+# Test Targets
+# ============================
+
+$(BUILD_DIR)/test_runner: $(KERNEL_C_SRCS) $(TEST_SRCS) | $(BUILD_DIR)
+	$(CC) $(CFLAGS_TEST) -I. -o $@ $(TEST_SRCS) $(KERNEL_C_SRCS)
 
 .PHONY: test
 test: $(BUILD_DIR)/test_runner
 	./$(BUILD_DIR)/test_runner
 
-# --- Boot target (just assembles, no full OS yet) ---
+# ============================
+# Convenience
+# ============================
+
+.PHONY: all
+all: $(BUILD_DIR)/disk.img
 
 .PHONY: boot
 boot: $(BUILD_DIR)/stage1.bin $(BUILD_DIR)/stage2.bin
 	@echo "Boot sectors assembled"
 
-# --- Convenience ---
+.PHONY: run
+run: all
+	qemu-system-x86_64 -drive format=raw,file=$(BUILD_DIR)/disk.img -nographic -serial mon:stdio
+
+.PHONY: run-gui
+run-gui: all
+	qemu-system-x86_64 -drive format=raw,file=$(BUILD_DIR)/disk.img
 
 .PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR)
-
-.PHONY: all
-all: boot
-
-.PHONY: run
-run: all
-	@echo "Full OS image not yet built — boot target only assembles stage1"
