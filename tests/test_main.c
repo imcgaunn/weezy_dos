@@ -1,5 +1,10 @@
 #include "test.h"
 
+/* Define the shared test counters (declared extern in test.h) */
+int tests_run = 0;
+int tests_passed = 0;
+int tests_failed = 0;
+
 /* Declare test functions from test files */
 void test_string_length_empty(void);
 void test_string_length_hello(void);

@@ -4,9 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 
-static int tests_run = 0;
-static int tests_passed = 0;
-static int tests_failed = 0;
+extern int tests_run;
+extern int tests_passed;
+extern int tests_failed;
 
 #define TEST(name) \
     void test_##name(void); \
