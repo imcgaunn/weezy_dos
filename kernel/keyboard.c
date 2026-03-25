@@ -5,6 +5,7 @@ static int buf_head = 0;
 static int buf_tail = 0;
 static keyboard_ops_t *ops = NULL;
 
+/* TODO: i think this is wrong */
 static const char scancode_table[128] = {
     /* 0x00-0x07 */ 0,   27,  '1', '2', '3', '4', '5', '6',
     /* 0x08-0x0F */ '7', '8', '9', '0', '-', '=', '\b', '\t',
