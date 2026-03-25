@@ -31,6 +31,9 @@ $(BUILD_DIR):
 $(BUILD_DIR)/stage1.bin: boot/stage1.asm | $(BUILD_DIR)
 	$(ASM) -f bin $< -o $@
 
+$(BUILD_DIR)/stage2.bin: boot/stage2.asm | $(BUILD_DIR)
+	$(ASM) -f bin $< -o $@
+
 # Cross-compile kernel C files
 $(BUILD_DIR)/%.o: kernel/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS_KERNEL) -c $< -o $@
@@ -47,8 +50,8 @@ test: $(BUILD_DIR)/test_runner
 # --- Boot target (just assembles, no full OS yet) ---
 
 .PHONY: boot
-boot: $(BUILD_DIR)/stage1.bin
-	@echo "Boot sector assembled: $(BUILD_DIR)/stage1.bin"
+boot: $(BUILD_DIR)/stage1.bin $(BUILD_DIR)/stage2.bin
+	@echo "Boot sectors assembled"
 
 # --- Convenience ---
 
