@@ -45,10 +45,11 @@ extern int tests_failed;
 } while (0)
 
 #define RUN_TEST(name) do { \
+    int _failed_before = tests_failed; \
     tests_run++; \
     printf("  %s... ", #name); \
     test_##name(); \
-    if (tests_failed == 0 || tests_passed == tests_run - 1) { \
+    if (tests_failed == _failed_before) { \
         tests_passed++; \
         printf("OK\n"); \
     } \
