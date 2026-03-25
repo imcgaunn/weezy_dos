@@ -14,6 +14,7 @@ void test_string_length_one_char(void);
 void run_string_tests(const char *filter);
 void run_console_tests(const char *filter);
 void run_keyboard_tests(const char *filter);
+void run_shell_tests(const char *filter);
 
 int main(int argc, char *argv[]) {
     const char *filter = (argc > 1) ? argv[1] : NULL;
@@ -29,6 +30,9 @@ int main(int argc, char *argv[]) {
 
     printf("\n[keyboard]\n");
     run_keyboard_tests(filter);
+
+    printf("\n[shell]\n");
+    run_shell_tests(filter);
 
     printf("\n====================\n");
     printf("Results: %d passed, %d failed, %d total\n",

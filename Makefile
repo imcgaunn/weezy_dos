@@ -17,10 +17,10 @@ CFLAGS_TEST   := -DWEEZYDOS_TEST -Wall -Wextra -std=c11 -g -fsanitize=address,un
 BUILD_DIR := build
 
 # --- Kernel source files (add new .c files here) ---
-KERNEL_SRCS := kernel/string.c kernel/console.c kernel/keyboard.c
+KERNEL_SRCS := kernel/string.c kernel/console.c kernel/keyboard.c kernel/shell.c
 
 # --- Test source files (add new test files here) ---
-TEST_SRCS := tests/test_main.c tests/test_string.c tests/test_console.c tests/test_keyboard.c
+TEST_SRCS := tests/test_main.c tests/test_string.c tests/test_console.c tests/test_keyboard.c tests/test_shell.c
 
 # --- OS Build Targets ---
 
