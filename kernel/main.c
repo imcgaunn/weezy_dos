@@ -35,7 +35,7 @@ static shell_io_t os_shell_io = {
     .puts = console_puts,
 };
 
-void kmain(void) {
+__attribute__((section(".text.entry"))) void kmain(void) {
     console_init(&vga_ops);
     console_clear();
     keyboard_init(NULL);

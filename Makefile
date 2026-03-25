@@ -64,11 +64,14 @@ $(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/kernel.elf
 
 # Build the disk image
 $(BUILD_DIR)/disk.img: $(BUILD_DIR)/stage1.bin $(BUILD_DIR)/stage2.bin $(BUILD_DIR)/kernel.bin
-	cp $(BUILD_DIR)/stage1.bin $(BUILD_DIR)/disk.img
-	dd if=$(BUILD_DIR)/stage2.bin of=$(BUILD_DIR)/stage2_padded.bin bs=512 count=$(STAGE2_SECTORS) conv=sync 2>/dev/null
-	cat $(BUILD_DIR)/stage2_padded.bin >> $(BUILD_DIR)/disk.img
-	cat $(BUILD_DIR)/kernel.bin >> $(BUILD_DIR)/disk.img
-	truncate -s $(FLOPPY_SIZE) $(BUILD_DIR)/disk.img
+	@# Create empty floppy-sized image
+	dd if=/dev/zero of=$(BUILD_DIR)/disk.img bs=$(FLOPPY_SIZE) count=1 2>/dev/null
+	@# Write stage1 at sector 0
+	dd if=$(BUILD_DIR)/stage1.bin of=$(BUILD_DIR)/disk.img bs=512 conv=notrunc 2>/dev/null
+	@# Write stage2 at sector 1 (offset 512)
+	dd if=$(BUILD_DIR)/stage2.bin of=$(BUILD_DIR)/disk.img bs=512 seek=1 conv=notrunc 2>/dev/null
+	@# Write kernel at sector 17 (offset 512 + 16*512 = 8704)
+	dd if=$(BUILD_DIR)/kernel.bin of=$(BUILD_DIR)/disk.img bs=512 seek=17 conv=notrunc 2>/dev/null
 	@echo "Disk image built: $(BUILD_DIR)/disk.img"
 
 # ============================
